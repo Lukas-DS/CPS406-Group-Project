@@ -1,0 +1,202 @@
+{% extends "base.html" %} {% block title %}Report Details{% endblock %} {% block
+content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1>Report Details</h1>
+    {% if is_own_report %}
+    <p class="lead text-muted">Your work report</p>
+    {% else %}
+    <p class="lead text-muted">Student work report</p>
+    {% endif %}
+  </div>
+  <div>
+    {% if current_user.role == 'coordinator' %}
+    <a href="{{ url_for('coordinator_reports') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Reports
+    </a>
+    {% elif current_user.role == 'employer' %}
+    <a href="{{ url_for('employer_reports') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Reports
+    </a>
+    {% else %}
+    <a href="{{ url_for('student_reports') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to My Reports
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Report Information -->
+<div class="row">
+  <div class="col-lg-8">
+    <!-- Main Report Content -->
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="fas fa-file-alt"></i> {{ report.report_title }}
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row mb-3">
+          <div class="col-sm-3">
+            <strong>Student:</strong>
+          </div>
+          <div class="col-sm-9">
+            {% if report.student_name %} {{ report.student_name }} {% if
+            report.student_username %}
+            <span class="text-muted">({{ report.student_username }})</span>
+            {% endif %} {% else %} {{ current_user.full_name }}
+            <span class="text-muted">(You)</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-sm-3">
+            <strong>Hours Worked:</strong>
+          </div>
+          <div class="col-sm-9">
+            <span class="badge bg-primary fs-6"
+              >{{ report.hours_worked }} hours</span
+            >
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-sm-3">
+            <strong>Submitted:</strong>
+          </div>
+          <div class="col-sm-9">
+            <span class="text-muted">{{ report.submitted_at }}</span>
+          </div>
+        </div>
+
+        <hr />
+
+        <h6 class="text-primary">Work Description</h6>
+        <div class="bg-light p-3 rounded">
+          <p style="white-space: pre-line">{{ report.work_description }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supervisor Information -->
+    <div class="card">
+      <div class="card-header bg-secondary text-white">
+        <h6 class="mb-0">
+          <i class="fas fa-user-tie"></i> Supervisor Information
+        </h6>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <strong>Supervisor Name:</strong>
+            <p>{{ report.supervisor_name }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Supervisor Email:</strong>
+            <p>
+              <a href="mailto:{{ report.supervisor_email }}">
+                {{ report.supervisor_email }}
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Summary Sidebar -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Report Summary</h6>
+      </div>
+      <div class="card-body">
+        <div class="text-center mb-3">
+          <div class="display-4 text-primary">{{ report.hours_worked }}</div>
+          <p class="mb-1">Hours Worked</p>
+        </div>
+
+        {% if not is_own_report and current_user.role == 'employer' %}
+        <hr />
+        <h6 class="text-primary">Actions</h6>
+        <div class="d-grid gap-2">
+          <a
+            href="{{ url_for('employer_evaluate', student_id=report.user_id) }}"
+            class="btn btn-primary"
+          >
+            <i class="fas fa-star"></i> Evaluate Student
+          </a>
+          <button class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Report
+          </button>
+        </div>
+        {% else %}
+        <hr />
+        <div class="d-grid gap-2">
+          <button class="btn btn-outline-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Report
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Access Information -->
+    {% if current_user.role == 'student' and is_own_report %}
+    <div class="card mt-3">
+      <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0"><i class="fas fa-lock"></i> Access Control</h6>
+      </div>
+      <div class="card-body">
+        <p class="small">
+          <strong>Note:</strong> This report has been shared with specific
+          coordinators and employers based on your selections during submission.
+        </p>
+        <p class="small text-muted mb-0">
+          To modify access permissions, contact your coordinator.
+        </p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %} {% block extra_js %}
+<script>
+  // Add print-specific styling
+  if (window.matchMedia) {
+    window.matchMedia("print").addListener(function (media) {
+      if (media.matches) {
+        document.body.classList.add("printing");
+      } else {
+        document.body.classList.remove("printing");
+      }
+    });
+  }
+</script>
+
+<style>
+  @media print {
+    .btn,
+    .card-header.bg-primary,
+    .card-header.bg-secondary,
+    .card-header.bg-info,
+    .card-header.bg-warning {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .btn {
+      display: none !important;
+    }
+
+    .card {
+      border: 1px solid #dee2e6 !important;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+{% endblock %}

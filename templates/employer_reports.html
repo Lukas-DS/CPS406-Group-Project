@@ -1,0 +1,128 @@
+{% extends "base.html" %} {% block title %}Employer Reports{% endblock %} {%
+block content %}
+<h1>Student Reports</h1>
+<p class="lead">View work reports from students you are supervising</p>
+
+{% if reports %}
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Student Work Reports ({{ reports|length }})</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Student</th>
+            <th>Report Title</th>
+            <th>Hours Worked</th>
+            <th>Submitted</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in reports %}
+          <tr>
+            <td>
+              <strong>{{ report.student_name }}</strong>
+              <br />
+              <small class="text-muted">{{ report.student_username }}</small>
+            </td>
+            <td>
+              <strong>{{ report.report_title }}</strong>
+              <br />
+              <small class="text-muted"
+                >{{ report.work_description[:80] }}{% if
+                report.work_description|length > 80 %}...{% endif %}</small
+              >
+            </td>
+            <td>
+              <span class="badge bg-primary"
+                >{{ report.hours_worked }} hours</span
+              >
+            </td>
+            <td>
+              <small class="text-muted">{{ report.submitted_at }}</small>
+            </td>
+            <td>
+              <a
+                href="{{ url_for('view_report', report_id=report.id) }}"
+                class="btn btn-primary btn-sm"
+              >
+                View Report
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  <h5>No Reports Available</h5>
+  <p>
+    You don't have access to any student reports yet. Reports will appear here
+    when students grant you access during their report submission.
+  </p>
+  <hr />
+  <p class="mb-0">
+    <strong>How it works:</strong> When students submit work reports, they can
+    choose to grant you access to view their progress and work details.
+  </p>
+  <div class="mt-3">
+    <a href="{{ url_for('employer_dashboard') }}" class="btn btn-primary">
+      Back to Dashboard
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Summary Statistics -->
+<div class="row mt-4">
+  <div class="col-md-6 col-lg-4">
+    <div class="card text-center border-primary">
+      <div class="card-body">
+        <h5 class="card-title text-primary">Reports</h5>
+        <h2 class="text-primary">{{ reports|length }}</h2>
+        <p class="card-text">Total reports accessible</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-4">
+    <div class="card text-center border-success">
+      <div class="card-body">
+        <h5 class="card-title text-success">Total Hours</h5>
+        <h2 class="text-success">
+          {{ reports|sum(attribute='hours_worked')|default(0) }}
+        </h2>
+        <p class="card-text">Hours worked by students</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-4">
+    <div class="card text-center border-info">
+      <div class="card-body">
+        <h5 class="card-title text-info">Students</h5>
+        <h2 class="text-info">
+          {{ reports|map(attribute='student_name')|unique|list|length|default(0)
+          }}
+        </h2>
+        <p class="card-text">Students reporting to you</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="mt-4 d-flex gap-2">
+  <a href="{{ url_for('employer_dashboard') }}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+  </a>
+  <a href="{{ url_for('employer_students') }}" class="btn btn-outline-primary">
+    View Students for Evaluation
+  </a>
+</div>
+
+{% endblock %}

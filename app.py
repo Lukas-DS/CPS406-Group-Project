@@ -352,7 +352,7 @@ def student_reports():
 @app.route('/api/student/submit-report', methods=['POST'])
 @role_required('student')
 def submit_report():
-    """Handle report submission (API endpoint)."""
+    """Handle report submission with access control (API endpoint)."""
     data = request.get_json()
 
     # Check if student has an accepted application
@@ -363,31 +363,136 @@ def submit_report():
     if application['status'] != 'accepted':
         return jsonify({'success': False, 'error': 'Your application must be accepted before submitting reports'}), 403
 
+    # Extract form data
     report_title = data.get('report_title', '').strip()
     work_description = data.get('work_description', '').strip()
     hours_worked = data.get('hours_worked', 0)
     supervisor_name = data.get('supervisor_name', '').strip()
     supervisor_email = data.get('supervisor_email', '').strip()
 
-    # Validate
+    # Extract access control data
+    coordinator_ids = data.get('coordinator_ids', [])
+    employer_id = data.get('employer_id')
+
+    # Validate basic report fields
     is_valid, error_msg = validate_report(
         report_title, work_description, hours_worked, supervisor_name, supervisor_email
     )
     if not is_valid:
         return jsonify({'success': False, 'error': error_msg}), 400
 
+    # Validate access control selections
     try:
-        report_id = database.create_report(
+        # Ensure coordinator_ids is a list
+        if not isinstance(coordinator_ids, list):
+            coordinator_ids = [coordinator_ids] if coordinator_ids else []
+
+        # Convert to integers and remove any empty values
+        coordinator_ids = [int(id) for id in coordinator_ids if id and str(id).strip()]
+        employer_ids = [int(employer_id)] if employer_id and str(employer_id).strip() else []
+
+        # Require at least one coordinator OR employer
+        if not coordinator_ids and not employer_ids:
+            return jsonify({
+                'success': False,
+                'error': 'Please select at least one coordinator or employer who can access this report'
+            }), 400
+
+        # Validate that selected coordinators exist and have correct role
+        for coord_id in coordinator_ids:
+            user = database.get_user_by_id(coord_id)
+            if not user:
+                return jsonify({'success': False, 'error': f'Coordinator with ID {coord_id} not found'}), 400
+            if user['role'] != 'coordinator':
+                return jsonify({'success': False, 'error': f'User {user["full_name"]} is not a coordinator'}), 400
+
+        # Validate that selected employers exist and have correct role
+        for emp_id in employer_ids:
+            user = database.get_user_by_id(emp_id)
+            if not user:
+                return jsonify({'success': False, 'error': f'Employer with ID {emp_id} not found'}), 400
+            if user['role'] != 'employer':
+                return jsonify({'success': False, 'error': f'User {user["full_name"]} is not an employer'}), 400
+
+        # Create report with access control
+        report_id = database.create_report_with_access(
             application['id'], current_user.id, report_title, work_description,
-            int(hours_worked), supervisor_name, supervisor_email
+            int(hours_worked), supervisor_name, supervisor_email,
+            coordinator_ids, employer_ids
         )
+
         return jsonify({
             'success': True,
-            'message': 'Report submitted successfully!',
+            'message': 'Report submitted successfully with access control!',
             'report_id': report_id
         }), 201
+
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid coordinator or employer ID format'}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============ USER SELECTION API ENDPOINTS ============
+
+@app.route('/api/users/coordinators', methods=['GET'])
+@login_required
+def get_coordinators_api():
+    """
+    Get all coordinators for dropdown selection.
+    Returns list of coordinators for report access control.
+    """
+    try:
+        coordinators = database.get_coordinators()
+        # Convert to list of dictionaries for JSON response
+        coordinator_list = []
+        for coord in coordinators:
+            coordinator_list.append({
+                'id': coord['id'],
+                'username': coord['username'],
+                'full_name': coord['full_name'],
+                'email': coord['email']
+            })
+
+        return jsonify({
+            'success': True,
+            'coordinators': coordinator_list
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to retrieve coordinators: {str(e)}'
+        }), 500
+
+
+@app.route('/api/users/employers', methods=['GET'])
+@login_required
+def get_employers_api():
+    """
+    Get all employers for dropdown selection.
+    Returns list of employers for report access control.
+    """
+    try:
+        employers = database.get_employers()
+        # Convert to list of dictionaries for JSON response
+        employer_list = []
+        for emp in employers:
+            employer_list.append({
+                'id': emp['id'],
+                'username': emp['username'],
+                'full_name': emp['full_name'],
+                'email': emp['email']
+            })
+
+        return jsonify({
+            'success': True,
+            'employers': employer_list
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to retrieve employers: {str(e)}'
+        }), 500
 
 
 # ============ COORDINATOR ROUTES ============
@@ -441,6 +546,48 @@ def review_application():
             return jsonify({'success': False, 'error': 'Application not found'}), 404
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/coordinator/reports')
+@role_required('coordinator')
+def coordinator_reports():
+    """Coordinator report viewing page."""
+    try:
+        # Get reports accessible to this coordinator
+        reports = database.get_reports_accessible_to_user(current_user.id, 'coordinator')
+        return render_template('coordinator_reports.html', reports=reports)
+    except Exception as e:
+        flash(f'Error loading reports: {str(e)}', 'danger')
+        return redirect(url_for('coordinator_dashboard'))
+
+
+@app.route('/api/coordinator/reports', methods=['GET'])
+@role_required('coordinator')
+def get_coordinator_reports_api():
+    """Get reports accessible to current coordinator (API endpoint)."""
+    try:
+        reports = database.get_reports_accessible_to_user(current_user.id, 'coordinator')
+        # Convert to list of dictionaries for JSON response
+        report_list = []
+        for report in reports:
+            report_list.append({
+                'id': report['id'],
+                'report_title': report['report_title'],
+                'student_name': report['student_name'],
+                'hours_worked': report['hours_worked'],
+                'submitted_at': report['submitted_at'],
+                'work_description': report['work_description'][:100] + '...' if len(report['work_description']) > 100 else report['work_description']
+            })
+
+        return jsonify({
+            'success': True,
+            'reports': report_list
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to retrieve reports: {str(e)}'
+        }), 500
 
 
 # ============ EMPLOYER ROUTES ============
@@ -512,6 +659,86 @@ def submit_evaluation():
         }), 201
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/employer/reports')
+@role_required('employer')
+def employer_reports():
+    """Employer report viewing page."""
+    try:
+        # Get reports accessible to this employer
+        reports = database.get_reports_accessible_to_user(current_user.id, 'employer')
+        return render_template('employer_reports.html', reports=reports)
+    except Exception as e:
+        flash(f'Error loading reports: {str(e)}', 'danger')
+        return redirect(url_for('employer_dashboard'))
+
+
+@app.route('/api/employer/reports', methods=['GET'])
+@role_required('employer')
+def get_employer_reports_api():
+    """Get reports accessible to current employer (API endpoint)."""
+    try:
+        reports = database.get_reports_accessible_to_user(current_user.id, 'employer')
+        # Convert to list of dictionaries for JSON response
+        report_list = []
+        for report in reports:
+            report_list.append({
+                'id': report['id'],
+                'report_title': report['report_title'],
+                'student_name': report['student_name'],
+                'hours_worked': report['hours_worked'],
+                'submitted_at': report['submitted_at'],
+                'work_description': report['work_description'][:100] + '...' if len(report['work_description']) > 100 else report['work_description']
+            })
+
+        return jsonify({
+            'success': True,
+            'reports': report_list
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to retrieve reports: {str(e)}'
+        }), 500
+
+
+@app.route('/reports/<int:report_id>')
+@login_required
+def view_report(report_id):
+    """View specific report with access control."""
+    try:
+        # Determine user access type
+        if current_user.role == 'coordinator':
+            access_type = 'coordinator'
+        elif current_user.role == 'employer':
+            access_type = 'employer'
+        elif current_user.role == 'student':
+            # Students can view their own reports
+            report = database.get_reports_by_user(current_user.id)
+            student_report = next((r for r in report if r['id'] == report_id), None)
+            if student_report:
+                return render_template('report_details.html', report=student_report, is_own_report=True)
+            else:
+                flash('Report not found or you do not have access.', 'danger')
+                return redirect(url_for('student_reports'))
+        else:
+            flash('You do not have permission to view reports.', 'danger')
+            return redirect(url_for('index'))
+
+        # Check access for coordinators and employers
+        report = database.get_report_with_access_check(report_id, current_user.id, access_type)
+        if not report:
+            flash('Report not found or you do not have access.', 'danger')
+            if current_user.role == 'coordinator':
+                return redirect(url_for('coordinator_reports'))
+            else:
+                return redirect(url_for('employer_reports'))
+
+        return render_template('report_details.html', report=report, is_own_report=False)
+    except Exception as e:
+        flash(f'Error loading report: {str(e)}', 'danger')
+        return redirect(url_for('index'))
 
 
 # ============ ERROR HANDLERS ============

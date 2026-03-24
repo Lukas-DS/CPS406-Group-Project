@@ -88,6 +88,20 @@ def init_db():
         )
     ''')
 
+    # Create report_access table (controls which coordinators/employers can access reports)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_access (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            access_type TEXT NOT NULL CHECK(access_type IN ('coordinator', 'employer')),
+            granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(report_id, user_id, access_type)
+        )
+    ''')
+
     # Create indexes for faster queries
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_student_id ON applications(student_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_role ON users(role)')
@@ -95,6 +109,11 @@ def init_db():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_application_user ON applications(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_reports_application ON reports(application_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_evaluations_student ON evaluations(student_user_id)')
+
+    # Indexes for report_access table
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_access_report ON report_access(report_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_access_user ON report_access(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_report_access_type ON report_access(access_type)')
 
     conn.commit()
     conn.close()
@@ -206,6 +225,49 @@ def get_user_by_id(user_id):
         return cursor.fetchone()
     finally:
         conn.close()
+
+
+def get_users_by_role(role):
+    """
+    Get all users with specified role for dropdown selection.
+
+    Args:
+        role: The role to filter by ('student', 'coordinator', 'employer')
+
+    Returns:
+        list: List of user rows with the specified role
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            'SELECT id, username, email, full_name, role FROM users WHERE role = ? ORDER BY full_name',
+            (role,)
+        )
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def get_coordinators():
+    """
+    Get all coordinators for dropdown selection.
+
+    Returns:
+        list: List of coordinator user rows
+    """
+    return get_users_by_role('coordinator')
+
+
+def get_employers():
+    """
+    Get all employers for dropdown selection.
+
+    Returns:
+        list: List of employer user rows
+    """
+    return get_users_by_role('employer')
 
 
 # ============ APPLICATION OPERATIONS ============
@@ -417,6 +479,7 @@ def get_reports_by_user(user_id):
 def get_all_reports():
     """
     Get all reports (for coordinator to view).
+    NOTE: This function is deprecated in favor of access-controlled report viewing.
 
     Returns:
         list: List of all report rows
@@ -427,6 +490,154 @@ def get_all_reports():
     try:
         cursor.execute('SELECT * FROM reports ORDER BY submitted_at DESC')
         return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def create_report_with_access(application_id, user_id, report_title, work_description,
+                            hours_worked, supervisor_name, supervisor_email,
+                            coordinator_ids, employer_ids):
+    """
+    Create a new work report and grant access to specified coordinators/employers in one transaction.
+
+    Args:
+        application_id: ID of the associated application
+        user_id: ID of the student submitting the report
+        report_title: Title of the report
+        work_description: Description of work performed
+        hours_worked: Number of hours worked
+        supervisor_name: Name of supervisor
+        supervisor_email: Email of supervisor
+        coordinator_ids: List of coordinator user IDs to grant access to
+        employer_ids: List of employer user IDs to grant access to
+
+    Returns:
+        int: The ID of the newly created report
+
+    Raises:
+        sqlite3.Error: If transaction fails
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Begin transaction
+        cursor.execute('BEGIN TRANSACTION')
+
+        # Create the report
+        cursor.execute('''
+            INSERT INTO reports (application_id, user_id, report_title, work_description,
+                               hours_worked, supervisor_name, supervisor_email)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (application_id, user_id, report_title, work_description,
+              hours_worked, supervisor_name, supervisor_email))
+
+        report_id = cursor.lastrowid
+
+        # Grant access to coordinators
+        for coordinator_id in coordinator_ids:
+            cursor.execute('''
+                INSERT INTO report_access (report_id, user_id, access_type)
+                VALUES (?, ?, ?)
+            ''', (report_id, coordinator_id, 'coordinator'))
+
+        # Grant access to employers
+        for employer_id in employer_ids:
+            cursor.execute('''
+                INSERT INTO report_access (report_id, user_id, access_type)
+                VALUES (?, ?, ?)
+            ''', (report_id, employer_id, 'employer'))
+
+        # Commit transaction
+        conn.commit()
+        return report_id
+    except Exception as e:
+        # Rollback on error
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+def grant_report_access(report_id, user_id, access_type):
+    """
+    Grant access to specific user for a report.
+
+    Args:
+        report_id: ID of the report
+        user_id: ID of the user to grant access to
+        access_type: 'coordinator' or 'employer'
+
+    Returns:
+        bool: True if access was granted, False if already existed
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            INSERT OR IGNORE INTO report_access (report_id, user_id, access_type)
+            VALUES (?, ?, ?)
+        ''', (report_id, user_id, access_type))
+
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_reports_accessible_to_user(user_id, access_type):
+    """
+    Get all reports that a coordinator/employer has access to view.
+
+    Args:
+        user_id: ID of the coordinator/employer
+        access_type: 'coordinator' or 'employer'
+
+    Returns:
+        list: List of report rows that the user can access
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT DISTINCT r.*, u.full_name as student_name, u.username as student_username
+            FROM reports r
+            INNER JOIN report_access ra ON r.id = ra.report_id
+            INNER JOIN users u ON r.user_id = u.id
+            WHERE ra.user_id = ? AND ra.access_type = ?
+            ORDER BY r.submitted_at DESC
+        ''', (user_id, access_type))
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def get_report_with_access_check(report_id, user_id, access_type):
+    """
+    Get report details if user has access, otherwise return None.
+
+    Args:
+        report_id: ID of the report
+        user_id: ID of the requesting user
+        access_type: 'coordinator' or 'employer'
+
+    Returns:
+        sqlite3.Row: Report row if user has access, None otherwise
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT r.*, u.full_name as student_name, u.username as student_username
+            FROM reports r
+            INNER JOIN report_access ra ON r.id = ra.report_id
+            INNER JOIN users u ON r.user_id = u.id
+            WHERE r.id = ? AND ra.user_id = ? AND ra.access_type = ?
+        ''', (report_id, user_id, access_type))
+        return cursor.fetchone()
     finally:
         conn.close()
 

@@ -73,6 +73,34 @@ block content %}
         </div>
       </div>
 
+      <!-- Access Control Section -->
+      <div class="mb-4">
+        <h6 class="text-primary">Report Access Control</h6>
+        <p class="text-muted small">Select who can access this report</p>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="coordinator_select" class="form-label">
+              Coordinators <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="coordinator_select" multiple size="3" required>
+              <option value="" disabled>Loading coordinators...</option>
+            </select>
+            <div class="form-text">Select one or more coordinators who can view this report</div>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label for="employer_select" class="form-label">
+              Employer <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="employer_select" required>
+              <option value="">Select an employer...</option>
+            </select>
+            <div class="form-text">Select the employer who can view this report</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Message Display Area -->
       <div id="message" class="alert" style="display: none" role="alert"></div>
 
@@ -127,6 +155,68 @@ block content %}
 </div>
 {% endblock %} {% block extra_js %}
 <script>
+  // Load coordinators and employers when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('coordinator_select')) {
+      loadCoordinators();
+      loadEmployers();
+    }
+  });
+
+  async function loadCoordinators() {
+    try {
+      const response = await fetch("/api/users/coordinators");
+      const result = await response.json();
+
+      const coordinatorSelect = document.getElementById("coordinator_select");
+      coordinatorSelect.innerHTML = ""; // Clear loading message
+
+      if (result.success && result.coordinators) {
+        if (result.coordinators.length === 0) {
+          coordinatorSelect.innerHTML = '<option value="" disabled>No coordinators available</option>';
+        } else {
+          result.coordinators.forEach(coordinator => {
+            const option = document.createElement("option");
+            option.value = coordinator.id;
+            option.textContent = `${coordinator.full_name} (${coordinator.email})`;
+            coordinatorSelect.appendChild(option);
+          });
+        }
+      } else {
+        coordinatorSelect.innerHTML = '<option value="" disabled>Error loading coordinators</option>';
+      }
+    } catch (error) {
+      console.error("Error loading coordinators:", error);
+      const coordinatorSelect = document.getElementById("coordinator_select");
+      coordinatorSelect.innerHTML = '<option value="" disabled>Error loading coordinators</option>';
+    }
+  }
+
+  async function loadEmployers() {
+    try {
+      const response = await fetch("/api/users/employers");
+      const result = await response.json();
+
+      const employerSelect = document.getElementById("employer_select");
+      employerSelect.innerHTML = '<option value="">Select an employer...</option>';
+
+      if (result.success && result.employers) {
+        result.employers.forEach(employer => {
+          const option = document.createElement("option");
+          option.value = employer.id;
+          option.textContent = `${employer.full_name} (${employer.email})`;
+          employerSelect.appendChild(option);
+        });
+      } else {
+        employerSelect.innerHTML = '<option value="" disabled>Error loading employers</option>';
+      }
+    } catch (error) {
+      console.error("Error loading employers:", error);
+      const employerSelect = document.getElementById("employer_select");
+      employerSelect.innerHTML = '<option value="" disabled>Error loading employers</option>';
+    }
+  }
+
   document
     .getElementById("reportForm")
     ?.addEventListener("submit", async function (e) {
@@ -145,6 +235,10 @@ block content %}
         supervisor_email: document
           .getElementById("supervisor_email")
           .value.trim(),
+        // Add access control data
+        coordinator_ids: Array.from(document.getElementById("coordinator_select").selectedOptions)
+                             .map(option => option.value),
+        employer_id: document.getElementById("employer_select").value
       };
 
       // Client-side validation
@@ -158,6 +252,15 @@ block content %}
 
       if (formData.hours_worked <= 0) {
         displayMessage("Hours worked must be greater than 0", "danger");
+        return;
+      }
+
+      // Validate access control - require at least one coordinator OR employer
+      if (formData.coordinator_ids.length === 0 && !formData.employer_id) {
+        displayMessage(
+          "Please select at least one coordinator or employer who can access this report",
+          "danger"
+        );
         return;
       }
 

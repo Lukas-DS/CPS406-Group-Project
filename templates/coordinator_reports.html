@@ -1,0 +1,119 @@
+{% extends "base.html" %} {% block title %}Coordinator Reports{% endblock %} {%
+block content %}
+<h1>Student Reports</h1>
+<p class="lead">View reports submitted by students that you have access to</p>
+
+{% if reports %}
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Reports ({{ reports|length }})</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Student</th>
+            <th>Report Title</th>
+            <th>Hours</th>
+            <th>Submitted</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in reports %}
+          <tr>
+            <td>
+              <strong>{{ report.student_name }}</strong>
+              <br />
+              <small class="text-muted">{{ report.student_username }}</small>
+            </td>
+            <td>
+              <strong>{{ report.report_title }}</strong>
+              <br />
+              <small class="text-muted"
+                >{{ report.work_description[:80] }}{% if
+                report.work_description|length > 80 %}...{% endif %}</small
+              >
+            </td>
+            <td>
+              <span class="badge bg-info">{{ report.hours_worked }}h</span>
+            </td>
+            <td>
+              <small>{{ report.submitted_at }}</small>
+            </td>
+            <td>
+              <a
+                href="{{ url_for('view_report', report_id=report.id) }}"
+                class="btn btn-primary btn-sm"
+              >
+                View Details
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  <h5>No Reports Available</h5>
+  <p>
+    You don't have access to any student reports yet. Reports will appear here
+    when students submit them and grant you access.
+  </p>
+  <hr />
+  <p class="mb-0">
+    <a href="{{ url_for('coordinator_dashboard') }}" class="btn btn-primary">
+      Back to Dashboard
+    </a>
+  </p>
+</div>
+{% endif %}
+
+<!-- Summary Card -->
+<div class="row mt-4">
+  <div class="col-md-6 col-lg-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">Total Reports</h5>
+        <h2 class="text-primary">{{ reports|length }}</h2>
+        <p class="card-text">Reports accessible to you</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">Total Hours</h5>
+        <h2 class="text-success">
+          {{ reports|sum(attribute='hours_worked')|default(0) }}h
+        </h2>
+        <p class="card-text">Combined hours reported</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">Students</h5>
+        <h2 class="text-info">
+          {{ reports|map(attribute='student_name')|unique|list|length|default(0)
+          }}
+        </h2>
+        <p class="card-text">Unique students</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="mt-4">
+  <a href="{{ url_for('coordinator_dashboard') }}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+
+{% endblock %}
