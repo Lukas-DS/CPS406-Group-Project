@@ -1,0 +1,43 @@
+{% extends "base.html" %} {% block title %}Evaluate Students{% endblock %} {%
+block content %}
+<h1>Evaluate Students</h1>
+<p class="lead">Select a student to evaluate</p>
+
+<div class="card">
+  <div class="card-body">
+    {% if students %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Student Name</th>
+            <th>Student ID</th>
+            <th>Email</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+          <tr>
+            <td>{{ student.full_name }}</td>
+            <td>{{ student.student_id }}</td>
+            <td>{{ student.email }}</td>
+            <td>
+              <a
+                href="{{ url_for('employer_evaluate', student_id=student.id) }}"
+                class="btn btn-sm btn-primary"
+              >
+                Evaluate
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No students with accepted applications found.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

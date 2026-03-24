@@ -1,0 +1,146 @@
+{% extends "base.html" %} {% block title %}Apply for Co-op{% endblock %} {%
+block content %}
+<h1>Co-op Application</h1>
+<p class="lead">Submit your application for provisional co-op acceptance</p>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form id="applicationForm">
+          <!-- Full Name -->
+          <div class="mb-3">
+            <label for="full_name" class="form-label"
+              >Full Name <span class="text-danger">*</span></label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="full_name"
+              name="full_name"
+              value="{{ current_user.full_name }}"
+              required
+              minlength="2"
+              maxlength="100"
+            />
+          </div>
+
+          <!-- Student ID -->
+          <div class="mb-3">
+            <label for="student_id" class="form-label"
+              >Student ID <span class="text-danger">*</span></label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="student_id"
+              name="student_id"
+              value="{{ current_user.student_id }}"
+              required
+              pattern="\d{9}"
+              maxlength="9"
+            />
+            <div class="form-text">Must be exactly 9 digits</div>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-3">
+            <label for="email" class="form-label"
+              >Email <span class="text-danger">*</span></label
+            >
+            <input
+              type="email"
+              class="form-control"
+              id="email"
+              name="email"
+              value="{{ current_user.email }}"
+              required
+            />
+          </div>
+
+          <!-- Message Display Area -->
+          <div
+            id="message"
+            class="alert"
+            style="display: none"
+            role="alert"
+          ></div>
+
+          <!-- Submit Button -->
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+              Submit Application
+            </button>
+            <a
+              href="{{ url_for('student_dashboard') }}"
+              class="btn btn-secondary"
+              >Cancel</a
+            >
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document
+    .getElementById("applicationForm")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      // Get form data
+      const formData = {
+        full_name: document.getElementById("full_name").value.trim(),
+        student_id: document.getElementById("student_id").value.trim(),
+        email: document.getElementById("email").value.trim(),
+      };
+
+      // Client-side validation
+      if (!/^\d{9}$/.test(formData.student_id)) {
+        displayMessage("Student ID must be exactly 9 digits", "danger");
+        return;
+      }
+
+      if (!/^[^@]+@[^@]+\.[^@]+$/.test(formData.email)) {
+        displayMessage("Please enter a valid email address", "danger");
+        return;
+      }
+
+      // Submit to server
+      try {
+        const response = await fetch("/api/student/submit-application", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          displayMessage(result.message, "success");
+          // Redirect to dashboard after 2 seconds
+          setTimeout(() => {
+            window.location.href = "/student/dashboard";
+          }, 2000);
+        } else {
+          displayMessage(result.error, "danger");
+        }
+      } catch (error) {
+        displayMessage("An error occurred. Please try again.", "danger");
+      }
+    });
+
+  function displayMessage(message, type) {
+    const messageDiv = document.getElementById("message");
+    messageDiv.textContent = message;
+    messageDiv.className = `alert alert-${type}`;
+    messageDiv.style.display = "block";
+
+    // Scroll to message
+    messageDiv.scrollIntoView({ behavior: "smooth" });
+  }
+</script>
+{% endblock %}

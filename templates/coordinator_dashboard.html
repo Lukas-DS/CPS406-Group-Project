@@ -1,0 +1,69 @@
+{% extends "base.html" %} {% block title %}Coordinator Dashboard{% endblock %}
+{% block content %}
+<h1>Coordinator Dashboard</h1>
+<p class="lead">Welcome, {{ current_user.full_name }}</p>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card text-white bg-info">
+      <div class="card-body">
+        <h5 class="card-title">Total Applications</h5>
+        <h2 class="display-4">{{ total_applications }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card text-white bg-warning">
+      <div class="card-body">
+        <h5 class="card-title">Pending Review</h5>
+        <h2 class="display-4">{{ pending_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card text-white bg-success">
+      <div class="card-body">
+        <h5 class="card-title">Accepted</h5>
+        <h2 class="display-4">{{ accepted_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card text-white bg-danger">
+      <div class="card-body">
+        <h5 class="card-title">Rejected</h5>
+        <h2 class="display-4">{{ rejected_count }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <a
+            href="{{ url_for('coordinator_applications') }}"
+            class="list-group-item list-group-item-action"
+          >
+            📋 Review Applications {% if pending_count > 0 %}
+            <span class="badge bg-warning text-dark float-end"
+              >{{ pending_count }} pending</span
+            >
+            {% endif %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

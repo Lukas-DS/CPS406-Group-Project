@@ -1,0 +1,47 @@
+{% extends "base.html" %} {% block title %}Employer Dashboard{% endblock %} {%
+block content %}
+<h1>Employer Dashboard</h1>
+<p class="lead">Welcome, {{ current_user.full_name }}</p>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <a
+            href="{{ url_for('employer_students') }}"
+            class="list-group-item list-group-item-action"
+          >
+            📝 Evaluate Students
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">About Student Evaluations</h5>
+        <p>
+          As an employer, you can evaluate students who have been accepted into
+          the co-op program.
+        </p>
+        <p>
+          Your evaluations help students and coordinators assess performance and
+          progress.
+        </p>
+        <p>
+          Click "Evaluate Students" above to view the list of students you can
+          evaluate.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends "base.html" %} {% block title %}Evaluate Student{% endblock %} {%
+block content %}
+<h1>Student Evaluation</h1>
+<p class="lead">Evaluate {{ student.full_name }}</p>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <!-- Student Info -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Student Information</h5>
+        <p><strong>Name:</strong> {{ student.full_name }}</p>
+        <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+        <p><strong>Email:</strong> {{ student.email }}</p>
+      </div>
+    </div>
+
+    <!-- Evaluation Form -->
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Evaluation Form</h5>
+      </div>
+      <div class="card-body">
+        <form id="evaluationForm">
+          <input type="hidden" id="student_user_id" value="{{ student.id }}" />
+          <input
+            type="hidden"
+            id="application_id"
+            value="{{ application.id }}"
+          />
+
+          <p class="text-muted">
+            Rate each category from 1 (Poor) to 5 (Excellent)
+          </p>
+
+          <!-- Technical Skills -->
+          <div class="mb-3">
+            <label for="technical_skills" class="form-label">
+              Technical Skills <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="technical_skills" required>
+              <option value="">Select rating...</option>
+              <option value="1">1 - Poor</option>
+              <option value="2">2 - Below Average</option>
+              <option value="3">3 - Average</option>
+              <option value="4">4 - Good</option>
+              <option value="5">5 - Excellent</option>
+            </select>
+          </div>
+
+          <!-- Communication -->
+          <div class="mb-3">
+            <label for="communication" class="form-label">
+              Communication Skills <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="communication" required>
+              <option value="">Select rating...</option>
+              <option value="1">1 - Poor</option>
+              <option value="2">2 - Below Average</option>
+              <option value="3">3 - Average</option>
+              <option value="4">4 - Good</option>
+              <option value="5">5 - Excellent</option>
+            </select>
+          </div>
+
+          <!-- Professionalism -->
+          <div class="mb-3">
+            <label for="professionalism" class="form-label">
+              Professionalism <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="professionalism" required>
+              <option value="">Select rating...</option>
+              <option value="1">1 - Poor</option>
+              <option value="2">2 - Below Average</option>
+              <option value="3">3 - Average</option>
+              <option value="4">4 - Good</option>
+              <option value="5">5 - Excellent</option>
+            </select>
+          </div>
+
+          <!-- Overall Rating -->
+          <div class="mb-3">
+            <label for="overall_rating" class="form-label">
+              Overall Rating <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="overall_rating" required>
+              <option value="">Select rating...</option>
+              <option value="1">1 - Poor</option>
+              <option value="2">2 - Below Average</option>
+              <option value="3">3 - Average</option>
+              <option value="4">4 - Good</option>
+              <option value="5">5 - Excellent</option>
+            </select>
+          </div>
+
+          <!-- Comments -->
+          <div class="mb-3">
+            <label for="comments" class="form-label"
+              >Additional Comments (Optional)</label
+            >
+            <textarea
+              class="form-control"
+              id="comments"
+              rows="4"
+              placeholder="Any additional feedback or comments..."
+            ></textarea>
+          </div>
+
+          <!-- Message Display Area -->
+          <div
+            id="message"
+            class="alert"
+            style="display: none"
+            role="alert"
+          ></div>
+
+          <!-- Submit Button -->
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+              Submit Evaluation
+            </button>
+            <a
+              href="{{ url_for('employer_students') }}"
+              class="btn btn-secondary"
+              >Cancel</a
+            >
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document
+    .getElementById("evaluationForm")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      // Get form data
+      const formData = {
+        student_user_id: document.getElementById("student_user_id").value,
+        application_id: document.getElementById("application_id").value,
+        technical_skills: document.getElementById("technical_skills").value,
+        communication: document.getElementById("communication").value,
+        professionalism: document.getElementById("professionalism").value,
+        overall_rating: document.getElementById("overall_rating").value,
+        comments: document.getElementById("comments").value.trim(),
+      };
+
+      // Client-side validation
+      const ratings = [
+        formData.technical_skills,
+        formData.communication,
+        formData.professionalism,
+        formData.overall_rating,
+      ];
+
+      for (let rating of ratings) {
+        if (!rating || rating < 1 || rating > 5) {
+          displayMessage("All ratings must be between 1 and 5", "danger");
+          return;
+        }
+      }
+
+      // Submit to server
+      try {
+        const response = await fetch("/api/employer/submit-evaluation", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          displayMessage(result.message, "success");
+          // Redirect to students list after 2 seconds
+          setTimeout(() => {
+            window.location.href = "/employer/students";
+          }, 2000);
+        } else {
+          displayMessage(result.error, "danger");
+        }
+      } catch (error) {
+        displayMessage("An error occurred. Please try again.", "danger");
+      }
+    });
+
+  function displayMessage(message, type) {
+    const messageDiv = document.getElementById("message");
+    messageDiv.textContent = message;
+    messageDiv.className = `alert alert-${type}`;
+    messageDiv.style.display = "block";
+    messageDiv.scrollIntoView({ behavior: "smooth" });
+  }
+</script>
+{% endblock %}

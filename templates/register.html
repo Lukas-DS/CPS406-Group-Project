@@ -1,0 +1,206 @@
+{% extends "base.html" %} {% block title %}Register - Co-op Support App{%
+endblock %} {% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card shadow">
+      <div class="card-body">
+        <h2 class="card-title text-center mb-4">Create Account</h2>
+
+        <form method="POST" action="/register" id="registerForm">
+          <!-- Username -->
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input
+              type="text"
+              class="form-control"
+              id="username"
+              name="username"
+              required
+              minlength="3"
+              maxlength="50"
+            />
+            <div class="form-text">
+              3-50 characters, letters/numbers/underscores only
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input
+              type="email"
+              class="form-control"
+              id="email"
+              name="email"
+              required
+            />
+          </div>
+
+          <!-- Full Name -->
+          <div class="mb-3">
+            <label for="full_name" class="form-label">Full Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="full_name"
+              name="full_name"
+              required
+              minlength="2"
+              maxlength="100"
+            />
+          </div>
+
+          <!-- Role Selection -->
+          <div class="mb-3">
+            <label class="form-label">I am a:</label>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                name="role"
+                id="role_student"
+                value="student"
+                checked
+              />
+              <label class="form-check-label" for="role_student">
+                Student
+              </label>
+            </div>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                name="role"
+                id="role_coordinator"
+                value="coordinator"
+              />
+              <label class="form-check-label" for="role_coordinator">
+                Coordinator
+              </label>
+            </div>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                name="role"
+                id="role_employer"
+                value="employer"
+              />
+              <label class="form-check-label" for="role_employer">
+                Employer
+              </label>
+            </div>
+          </div>
+
+          <!-- Student ID (only shown for students) -->
+          <div class="mb-3" id="student_id_field">
+            <label for="student_id" class="form-label">Student ID</label>
+            <input
+              type="text"
+              class="form-control"
+              id="student_id"
+              name="student_id"
+              pattern="\d{9}"
+              maxlength="9"
+            />
+            <div class="form-text">9 digits (required for students)</div>
+          </div>
+
+          <!-- Password -->
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input
+              type="password"
+              class="form-control"
+              id="password"
+              name="password"
+              required
+              minlength="8"
+            />
+            <div class="form-text">Minimum 8 characters</div>
+          </div>
+
+          <!-- Confirm Password -->
+          <div class="mb-3">
+            <label for="password_confirm" class="form-label"
+              >Confirm Password</label
+            >
+            <input
+              type="password"
+              class="form-control"
+              id="password_confirm"
+              name="password_confirm"
+              required
+            />
+          </div>
+
+          <!-- Submit Button -->
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">
+              Register
+            </button>
+          </div>
+        </form>
+
+        <div class="text-center mt-3">
+          <p>Already have an account? <a href="/login">Login here</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  // Show/hide student ID field based on role selection
+  document.addEventListener("DOMContentLoaded", function () {
+    const roleStudentRadio = document.getElementById("role_student");
+    const roleCoordinatorRadio = document.getElementById("role_coordinator");
+    const roleEmployerRadio = document.getElementById("role_employer");
+    const studentIdField = document.getElementById("student_id_field");
+    const studentIdInput = document.getElementById("student_id");
+
+    function toggleStudentIdField() {
+      if (roleStudentRadio.checked) {
+        studentIdField.style.display = "block";
+        studentIdInput.required = true;
+      } else {
+        studentIdField.style.display = "none";
+        studentIdInput.required = false;
+        studentIdInput.value = "";
+      }
+    }
+
+    // Initial check
+    toggleStudentIdField();
+
+    // Add event listeners
+    roleStudentRadio.addEventListener("change", toggleStudentIdField);
+    roleCoordinatorRadio.addEventListener("change", toggleStudentIdField);
+    roleEmployerRadio.addEventListener("change", toggleStudentIdField);
+
+    // Form validation
+    document
+      .getElementById("registerForm")
+      .addEventListener("submit", function (e) {
+        const password = document.getElementById("password").value;
+        const passwordConfirm =
+          document.getElementById("password_confirm").value;
+
+        if (password !== passwordConfirm) {
+          e.preventDefault();
+          alert("Passwords do not match!");
+          return false;
+        }
+
+        if (roleStudentRadio.checked) {
+          const studentId = studentIdInput.value;
+          if (!/^\d{9}$/.test(studentId)) {
+            e.preventDefault();
+            alert("Student ID must be exactly 9 digits!");
+            return false;
+          }
+        }
+      });
+  });
+</script>
+{% endblock %}

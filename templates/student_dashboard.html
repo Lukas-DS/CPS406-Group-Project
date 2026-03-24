@@ -1,0 +1,92 @@
+{% extends "base.html" %} {% block title %}Student Dashboard{% endblock %} {%
+block content %}
+<h1>Welcome, {{ current_user.full_name }}!</h1>
+<p class="lead">Student Dashboard</p>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Application Status</h5>
+
+        {% if application %}
+        <div
+          class="alert alert-{{ 'success' if application.status == 'accepted' else 'warning' if application.status == 'pending' else 'danger' }}"
+        >
+          <h6>Status: <strong>{{ application.status.upper() }}</strong></h6>
+          <p><strong>Student ID:</strong> {{ application.student_id }}</p>
+          <p><strong>Submitted:</strong> {{ application.submitted_at }}</p>
+
+          {% if application.status == 'pending' %}
+          <p class="mb-0">
+            Your application is being reviewed by the coordinator.
+          </p>
+          {% elif application.status == 'accepted' %}
+          <p class="mb-0">
+            Congratulations! Your application has been accepted. You can now
+            submit work reports.
+          </p>
+          {% elif application.status == 'rejected' %}
+          <p class="mb-0">
+            Unfortunately, your application was not accepted at this time.
+          </p>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+          <p>You haven't submitted a co-op application yet.</p>
+          <a href="{{ url_for('student_apply') }}" class="btn btn-primary"
+            >Apply Now</a
+          >
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Quick Actions</h5>
+        <div class="list-group">
+          {% if not application %}
+          <a
+            href="{{ url_for('student_apply') }}"
+            class="list-group-item list-group-item-action"
+          >
+            📝 Submit Application
+          </a>
+          {% endif %} {% if application and application.status == 'accepted' %}
+          <a
+            href="{{ url_for('student_reports') }}"
+            class="list-group-item list-group-item-action"
+          >
+            📄 Submit Work Report
+          </a>
+          {% endif %}
+
+          <a
+            href="{{ url_for('student_reports') }}"
+            class="list-group-item list-group-item-action"
+          >
+            📊 View My Reports
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Your Information</h5>
+        <p><strong>Name:</strong> {{ current_user.full_name }}</p>
+        <p><strong>Email:</strong> {{ current_user.email }}</p>
+        <p><strong>Student ID:</strong> {{ current_user.student_id }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

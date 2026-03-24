@@ -1,0 +1,198 @@
+{% extends "base.html" %} {% block title %}Student Reports{% endblock %} {%
+block content %}
+<h1>Work Reports</h1>
+<p class="lead">Submit and view your co-op work reports</p>
+
+{% if application and application.status == 'accepted' %}
+<!-- Report Submission Form -->
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">Submit New Report</h5>
+  </div>
+  <div class="card-body">
+    <form id="reportForm">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="report_title" class="form-label"
+            >Report Title <span class="text-danger">*</span></label
+          >
+          <input type="text" class="form-control" id="report_title" required />
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label for="hours_worked" class="form-label"
+            >Hours Worked <span class="text-danger">*</span></label
+          >
+          <input
+            type="number"
+            class="form-control"
+            id="hours_worked"
+            min="1"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="work_description" class="form-label"
+          >Work Description <span class="text-danger">*</span></label
+        >
+        <textarea
+          class="form-control"
+          id="work_description"
+          rows="4"
+          required
+          placeholder="Describe the work you performed during this period..."
+        ></textarea>
+        <div class="form-text">Minimum 10 characters</div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="supervisor_name" class="form-label"
+            >Supervisor Name <span class="text-danger">*</span></label
+          >
+          <input
+            type="text"
+            class="form-control"
+            id="supervisor_name"
+            required
+          />
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label for="supervisor_email" class="form-label"
+            >Supervisor Email <span class="text-danger">*</span></label
+          >
+          <input
+            type="email"
+            class="form-control"
+            id="supervisor_email"
+            required
+          />
+        </div>
+      </div>
+
+      <!-- Message Display Area -->
+      <div id="message" class="alert" style="display: none" role="alert"></div>
+
+      <button type="submit" class="btn btn-primary">Submit Report</button>
+      <button type="reset" class="btn btn-secondary">Clear Form</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+  <strong>Note:</strong> You must have an accepted application before you can
+  submit reports. {% if not application %}
+  <a href="{{ url_for('student_apply') }}">Submit an application first</a>. {%
+  elif application.status == 'pending' %} Your application is currently pending
+  review. {% endif %}
+</div>
+{% endif %}
+
+<!-- Previously Submitted Reports -->
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">My Submitted Reports</h5>
+  </div>
+  <div class="card-body">
+    {% if reports %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Title</th>
+            <th>Hours</th>
+            <th>Supervisor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in reports %}
+          <tr>
+            <td>{{ report.submitted_at }}</td>
+            <td>{{ report.report_title }}</td>
+            <td>{{ report.hours_worked }}</td>
+            <td>{{ report.supervisor_name }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">You haven't submitted any reports yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document
+    .getElementById("reportForm")
+    ?.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      // Get form data
+      const formData = {
+        report_title: document.getElementById("report_title").value.trim(),
+        work_description: document
+          .getElementById("work_description")
+          .value.trim(),
+        hours_worked: document.getElementById("hours_worked").value,
+        supervisor_name: document
+          .getElementById("supervisor_name")
+          .value.trim(),
+        supervisor_email: document
+          .getElementById("supervisor_email")
+          .value.trim(),
+      };
+
+      // Client-side validation
+      if (formData.work_description.length < 10) {
+        displayMessage(
+          "Work description must be at least 10 characters",
+          "danger",
+        );
+        return;
+      }
+
+      if (formData.hours_worked <= 0) {
+        displayMessage("Hours worked must be greater than 0", "danger");
+        return;
+      }
+
+      // Submit to server
+      try {
+        const response = await fetch("/api/student/submit-report", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          displayMessage(result.message, "success");
+          // Reload page after 2 seconds to show new report
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          displayMessage(result.error, "danger");
+        }
+      } catch (error) {
+        displayMessage("An error occurred. Please try again.", "danger");
+      }
+    });
+
+  function displayMessage(message, type) {
+    const messageDiv = document.getElementById("message");
+    messageDiv.textContent = message;
+    messageDiv.className = `alert alert-${type}`;
+    messageDiv.style.display = "block";
+    messageDiv.scrollIntoView({ behavior: "smooth" });
+  }
+</script>
+{% endblock %}

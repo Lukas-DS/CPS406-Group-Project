@@ -1,0 +1,120 @@
+{% extends "base.html" %} {% block title %}Review Applications{% endblock %} {%
+block content %}
+<h1>Review Applications</h1>
+<p class="lead">View and manage all co-op applications</p>
+
+<!-- Message Display Area -->
+<div id="message" class="alert" style="display: none" role="alert"></div>
+
+<!-- Applications Table -->
+<div class="card">
+  <div class="card-body">
+    {% if applications %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>Student Name</th>
+            <th>Student ID</th>
+            <th>Email</th>
+            <th>Submitted</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for app in applications %}
+          <tr id="app-{{ app.id }}">
+            <td>{{ app.id }}</td>
+            <td>{{ app.full_name }}</td>
+            <td>{{ app.student_id }}</td>
+            <td>{{ app.email }}</td>
+            <td>{{ app.submitted_at[:10] }}</td>
+            <td>
+              <span
+                class="badge bg-{{ 'warning' if app.status == 'pending' else 'success' if app.status == 'accepted' else 'danger' }}"
+              >
+                {{ app.status.upper() }}
+              </span>
+            </td>
+            <td>
+              {% if app.status == 'pending' %}
+              <button
+                class="btn btn-sm btn-success"
+                onclick="reviewApplication({{ app.id }}, 'accepted')"
+              >
+                ✓ Approve
+              </button>
+              <button
+                class="btn btn-sm btn-danger"
+                onclick="reviewApplication({{ app.id }}, 'rejected')"
+              >
+                ✗ Reject
+              </button>
+              {% else %}
+              <span class="text-muted">Reviewed</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No applications submitted yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  async function reviewApplication(applicationId, status) {
+    if (!confirm(`Are you sure you want to ${status} this application?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/coordinator/review-application", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          application_id: applicationId,
+          status: status,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        displayMessage(result.message, "success");
+
+        // Update the row to show new status
+        const row = document.getElementById(`app-${applicationId}`);
+        const statusCell = row.querySelector("td:nth-child(6)");
+        const actionsCell = row.querySelector("td:nth-child(7)");
+
+        statusCell.innerHTML = `<span class="badge bg-${status === "accepted" ? "success" : "danger"}">${status.toUpperCase()}</span>`;
+        actionsCell.innerHTML = '<span class="text-muted">Reviewed</span>';
+
+        // Scroll to message
+        document
+          .getElementById("message")
+          .scrollIntoView({ behavior: "smooth" });
+      } else {
+        displayMessage(result.error, "danger");
+      }
+    } catch (error) {
+      displayMessage("An error occurred. Please try again.", "danger");
+    }
+  }
+
+  function displayMessage(message, type) {
+    const messageDiv = document.getElementById("message");
+    messageDiv.textContent = message;
+    messageDiv.className = `alert alert-${type}`;
+    messageDiv.style.display = "block";
+  }
+</script>
+{% endblock %}
