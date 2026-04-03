@@ -10,4 +10,4 @@ DATABASE_PATH = 'instance/coop_app.db'
 SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
 
 # Debug mode (set to False in production)
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
