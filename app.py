@@ -391,6 +391,7 @@ def submit_report():
         coordinator_ids = [int(id) for id in coordinator_ids if id and str(id).strip()]
         employer_ids = [int(employer_id)] if employer_id and str(employer_id).strip() else []
 
+<<<<<<< HEAD
         # Require at least one coordinator OR employer
         if not coordinator_ids and not employer_ids:
             return jsonify({
@@ -398,6 +399,8 @@ def submit_report():
                 'error': 'Please select at least one coordinator or employer who can access this report'
             }), 400
 
+=======
+>>>>>>> 0cbc115 (Sprint 2 updates)
         # Validate that selected coordinators exist and have correct role
         for coord_id in coordinator_ids:
             user = database.get_user_by_id(coord_id)
